@@ -43,6 +43,19 @@ export interface NavigationChangedEvent {
     canGoBack: boolean;
     canGoForward: boolean;
 }
+export interface SnapshotOptions {
+    /** JPEG quality, 0.1 - 1.0. Default 0.8. */
+    quality?: number;
+}
+export interface SnapshotResult {
+    /** `data:image/jpeg;base64,...`, usable directly as an `<img>` src. */
+    dataUrl: string;
+    /** Position and size of the browser in the app page, in CSS px (fixed/viewport coordinates). */
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+}
 export interface InsetBrowserPlugin {
     /** Open the inset browser. If already open, navigates it to `url` (and applies any given insets). */
     open(options: OpenOptions): Promise<void>;
@@ -58,6 +71,13 @@ export interface InsetBrowserPlugin {
     show(): Promise<void>;
     /** Hide the browser without destroying it (state is kept). */
     hide(): Promise<void>;
+    /**
+     * JPEG image of what the visible browser shows, with its position in the
+     * app page. Show it in an `<img>` at that position, then `hide()`, so app
+     * panels (e.g. a side menu) can appear over a still image of the page.
+     * Rejects when the browser is not open or hidden. Not supported on web.
+     */
+    snapshot(options?: SnapshotOptions): Promise<SnapshotResult>;
     addListener(eventName: 'pageLoadStarted', listenerFunc: (event: UrlEvent) => void): Promise<PluginListenerHandle>;
     addListener(eventName: 'pageLoaded', listenerFunc: (event: UrlEvent) => void): Promise<PluginListenerHandle>;
     addListener(eventName: 'pageLoadError', listenerFunc: (event: PageLoadErrorEvent) => void): Promise<PluginListenerHandle>;

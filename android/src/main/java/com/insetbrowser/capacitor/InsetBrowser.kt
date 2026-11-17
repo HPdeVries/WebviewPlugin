@@ -3,6 +3,13 @@ package com.insetbrowser.capacitor
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Rect
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
+import android.view.PixelCopy
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -14,6 +21,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
+import java.io.ByteArrayOutputStream
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -26,8 +34,8 @@ import kotlin.math.roundToInt
  */
 @SuppressLint("SetJavaScriptEnabled")
 class InsetBrowser(
-    activity: Activity,
-    host: WebView,
+    private val activity: Activity,
+    private val host: WebView,
     private var insetTop: Double,
     private var insetBottom: Double,
     private var includeSafeArea: Boolean,
@@ -129,6 +137,58 @@ class InsetBrowser(
         bottom?.let { insetBottom = it }
         includeSafeArea?.let { this.includeSafeArea = it }
         applyLayout()
+    }
+
+    /**
+     * JPEG image of what the browser currently shows, plus its frame in the
+     * Capacitor webview's CSS px (dp), so the page can put the image exactly
+     * where the browser is (e.g. before hiding it while a menu is open).
+     * [done] is called with (result, null) or (null, error), possibly off the
+     * main thread. Must be called on the main thread.
+     */
+    fun snapshot(quality: Int, done: (JSObject?, String?) -> Unit) {
+        val w = webView.width
+        val h = webView.height
+        if (!isVisible() || w == 0 || h == 0) {
+            done(null, "InsetBrowser is not visible")
+            return
+        }
+        val loc = IntArray(2).also { webView.getLocationInWindow(it) }
+        val hostLoc = IntArray(2).also { host.getLocationInWindow(it) }
+        val frame = JSObject()
+            .put("left", ((loc[0] - hostLoc[0]) / density).toDouble())
+            .put("top", ((loc[1] - hostLoc[1]) / density).toDouble())
+            .put("width", (w / density).toDouble())
+            .put("height", (h / density).toDouble())
+        val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+
+        fun encode() = Thread {
+            try {
+                val out = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, quality, out)
+                bitmap.recycle()
+                val b64 = Base64.encodeToString(out.toByteArray(), Base64.NO_WRAP)
+                done(frame.put("dataUrl", "data:image/jpeg;base64,$b64"), null)
+            } catch (e: Exception) {
+                done(null, "Snapshot encoding failed: ${e.message}")
+            }
+        }.start()
+
+        fun drawFallback() {
+            webView.draw(Canvas(bitmap))
+            encode()
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // Copies the composited screen pixels, so hardware-rendered content
+            // (video, canvas) is included, unlike View.draw().
+            val src = Rect(loc[0], loc[1], loc[0] + w, loc[1] + h)
+            PixelCopy.request(activity.window, src, bitmap, { result ->
+                if (result == PixelCopy.SUCCESS) encode() else drawFallback()
+            }, Handler(Looper.getMainLooper()))
+        } else {
+            drawFallback()
+        }
     }
 
     fun destroy() {

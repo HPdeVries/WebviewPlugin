@@ -1,6 +1,6 @@
 import { WebPlugin } from '@capacitor/core';
 
-import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions } from './definitions';
+import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult } from './definitions';
 
 /**
  * Development fallback: a fixed-position iframe that leaves the requested
@@ -82,6 +82,11 @@ export class InsetBrowserWeb extends WebPlugin implements InsetBrowserPlugin {
 
   async hide(): Promise<void> {
     if (this.frame) this.frame.style.display = 'none';
+  }
+
+  async snapshot(): Promise<SnapshotResult> {
+    // A cross-origin iframe cannot be rendered to an image.
+    throw this.unavailable('snapshot is not supported on web');
   }
 
   private applyLayout(): void {

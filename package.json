@@ -1,6 +1,6 @@
 {
   "name": "capacitor-inset-browser",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Capacitor plugin that shows external web content in a native webview while keeping a strip of the host app (top/bottom menu) visible and interactive.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",

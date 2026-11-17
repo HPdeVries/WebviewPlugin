@@ -27,6 +27,7 @@ navigate({ url }): Promise<void>
 goBack() / goForward() / reload(): Promise<void>
 setInsets({ insetBottom?, insetTop? }): Promise<void>
 show() / hide(): Promise<void>   // toggle visibility, keep state
+snapshot({ quality? }): Promise<{ dataUrl, left, top, width, height }>
 ```
 
 - `insetTop` / `insetBottom`: CSS px (= pt on iOS, dp on Android), **excluding** safe area. Default `0`.
@@ -37,6 +38,35 @@ show() / hide(): Promise<void>   // toggle visibility, keep state
   store is process-wide and shared with the app webview.
 - Only one instance exists. `open()` while open navigates it (and applies any insets passed) and makes it visible.
 - Layout is recalculated on rotation/resize automatically.
+
+### Panels over the browser (`snapshot`)
+
+The inset browser is a native view above the app page, so HTML panels (side menu, popups)
+open *under* it. To show a panel over it, freeze the browser first: take a snapshot, put it
+in an `<img>` at the returned position (CSS px, fixed coordinates), then hide the browser.
+Undo it when the panel closes:
+
+```js
+async function freeze() {
+  const s = await InsetBrowser.snapshot();            // JPEG data URL + frame
+  const img = document.createElement('img');
+  img.id = 'inset-browser-freeze';
+  img.src = s.dataUrl;
+  img.style.cssText = `position:fixed;left:${s.left}px;top:${s.top}px;width:${s.width}px;` +
+    `height:${s.height}px;z-index:1;pointer-events:none`;   // below the panel
+  document.body.appendChild(img);
+  await img.decode().catch(() => {});                 // no flicker
+  await InsetBrowser.hide();
+}
+async function unfreeze() {
+  await InsetBrowser.show();
+  document.getElementById('inset-browser-freeze')?.remove();
+}
+```
+
+The image must sit below the panel and its backdrop (low `z-index`, or append it to a
+container the panel covers). `snapshot()` rejects when the browser is closed or hidden. On
+Android it uses `PixelCopy` (API 26+), so video/canvas content is included.
 
 ### Events
 
@@ -94,14 +124,14 @@ A full minimal page is in [`example/index.html`](example/index.html).
      "buildConfigurations": {
        "capacitor": {
          "source": {
-           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.1.0"
+           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.2.0"
          }
        }
      }
    }
    ```
 
-   If published to npm, use `"npm": "capacitor-inset-browser@0.1.0"` instead. The plugin needs no
+   If published to npm, use `"npm": "capacitor-inset-browser@0.2.0"` instead. The plugin needs no
    permissions (INTERNET is declared in its own manifest), so no `pluginConfigurations` are needed.
    Schema: [Library (plugin) extensibility configuration JSON schema](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/configure_mobile_apps/universal_extensibility_configurations_json_schema/library_plugin_extensibility_configuration_json_schema/),
    guide: [Integrate Capacitor plugin into a mobile app](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/use_mobile_plugins/integrate_capacitor_plugin_into_a_mobile_app/).

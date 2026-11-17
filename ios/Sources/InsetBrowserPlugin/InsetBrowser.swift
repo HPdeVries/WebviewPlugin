@@ -75,6 +75,37 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
         applyConstraints()
     }
 
+    /// JPEG image of what the browser currently shows, plus its frame in the
+    /// Capacitor webview's CSS px (pt), so the page can put the image exactly
+    /// where the browser is (e.g. before hiding it while a menu is open).
+    func snapshot(quality: CGFloat, completion: @escaping (Result<[String: Any], Error>) -> Void) {
+        guard let host = host, !webView.isHidden, !webView.bounds.isEmpty else {
+            completion(.failure(InsetBrowserError("InsetBrowser is not visible")))
+            return
+        }
+        let frame = webView.convert(webView.bounds, to: host)
+        webView.takeSnapshot(with: WKSnapshotConfiguration()) { image, error in
+            guard let image = image else {
+                completion(.failure(error ?? InsetBrowserError("Snapshot failed")))
+                return
+            }
+            // JPEG encoding off the main thread; it can take tens of ms.
+            DispatchQueue.global(qos: .userInitiated).async {
+                guard let data = image.jpegData(compressionQuality: quality) else {
+                    completion(.failure(InsetBrowserError("Snapshot encoding failed")))
+                    return
+                }
+                completion(.success([
+                    "dataUrl": "data:image/jpeg;base64," + data.base64EncodedString(),
+                    "left": Double(frame.minX),
+                    "top": Double(frame.minY),
+                    "width": Double(frame.width),
+                    "height": Double(frame.height)
+                ]))
+            }
+        }
+    }
+
     func destroy() {
         observations.forEach { $0.invalidate() }
         observations = []
@@ -171,4 +202,10 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
         }
         return nil
     }
+}
+
+struct InsetBrowserError: LocalizedError {
+    let message: String
+    init(_ message: String) { self.message = message }
+    var errorDescription: String? { message }
 }

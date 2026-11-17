@@ -6,6 +6,7 @@ import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
 import com.getcapacitor.PluginMethod
 import com.getcapacitor.annotation.CapacitorPlugin
+import kotlin.math.roundToInt
 
 @CapacitorPlugin(name = "InsetBrowser")
 class InsetBrowserPlugin : Plugin() {
@@ -94,6 +95,21 @@ class InsetBrowserPlugin : Plugin() {
         val top = call.getDouble("insetTop")
         val bottom = call.getDouble("insetBottom")
         withBrowser(call) { it.setInsets(top, bottom, null) }
+    }
+
+    @PluginMethod
+    fun snapshot(call: PluginCall) {
+        val quality = ((call.getDouble("quality") ?: 0.8).coerceIn(0.1, 1.0) * 100).roundToInt()
+        activity.runOnUiThread {
+            val b = browser
+            if (b == null) {
+                call.reject("InsetBrowser is not open")
+                return@runOnUiThread
+            }
+            b.snapshot(quality) { data, error ->
+                if (data != null) call.resolve(data) else call.reject(error ?: "Snapshot failed")
+            }
+        }
     }
 
     private fun withBrowser(call: PluginCall, action: (InsetBrowser) -> Unit) {

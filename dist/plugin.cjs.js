@@ -91,6 +91,10 @@ class InsetBrowserWeb extends core.WebPlugin {
         if (this.frame)
             this.frame.style.display = 'none';
     }
+    async snapshot() {
+        // A cross-origin iframe cannot be rendered to an image.
+        throw this.unavailable('snapshot is not supported on web');
+    }
     applyLayout() {
         if (!this.frame)
             return;
