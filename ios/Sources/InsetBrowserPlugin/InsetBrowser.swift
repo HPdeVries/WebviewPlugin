@@ -18,6 +18,8 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
     private var includeSafeArea: Bool
     private var layoutConstraints: [NSLayoutConstraint] = []
     private var observations: [NSKeyValueObservation] = []
+    private var navigationChangePending = false
+    private var lastNavigationState: (url: String, canGoBack: Bool, canGoForward: Bool)?
 
     init(host: UIView, insetTop: CGFloat, insetBottom: CGFloat, includeSafeArea: Bool, incognito: Bool, emit: @escaping Emit) {
         self.host = host
@@ -45,7 +47,9 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
         host.bringSubviewToFront(webView)
         applyConstraints()
 
-        let notify: (WKWebView) -> Void = { [weak self] _ in self?.emitNavigationChanged() }
+        // KVO also catches same-document navigations (pushState, #hash),
+        // which produce no navigation delegate callbacks.
+        let notify: (WKWebView) -> Void = { [weak self] _ in self?.scheduleNavigationChanged() }
         observations = [
             webView.observe(\.url, options: [.new]) { wv, _ in notify(wv) },
             webView.observe(\.canGoBack, options: [.new]) { wv, _ in notify(wv) },
@@ -101,12 +105,26 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     // MARK: - Events
 
-    private func emitNavigationChanged() {
-        emit("navigationChanged", [
-            "url": webView.url?.absoluteString ?? "",
-            "canGoBack": webView.canGoBack,
-            "canGoForward": webView.canGoForward
-        ])
+    /// Coalesces the separate url/canGoBack/canGoForward changes of one
+    /// navigation into a single event, and drops unchanged states.
+    /// The state is read from the back-forward list, which only changes when
+    /// a navigation commits: `webView.url` already holds the provisional URL
+    /// (even for loads that then fail), so it is only used as a trigger.
+    private func scheduleNavigationChanged() {
+        guard !navigationChangePending else { return }
+        navigationChangePending = true
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            self.navigationChangePending = false
+            let list = self.webView.backForwardList
+            guard let current = list.currentItem else { return } // nothing committed yet
+            let state = (url: current.url.absoluteString,
+                         canGoBack: list.backItem != nil,
+                         canGoForward: list.forwardItem != nil)
+            if let last = self.lastNavigationState, last == state { return }
+            self.lastNavigationState = state
+            self.emit("navigationChanged", ["url": state.url, "canGoBack": state.canGoBack, "canGoForward": state.canGoForward])
+        }
     }
 
     private func emitError(_ error: Error) {
@@ -124,15 +142,22 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
         emit("pageLoadStarted", ["url": webView.url?.absoluteString ?? ""])
     }
 
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        scheduleNavigationChanged()
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        scheduleNavigationChanged()
         emit("pageLoaded", ["url": webView.url?.absoluteString ?? ""])
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        scheduleNavigationChanged()
         emitError(error)
     }
 
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        scheduleNavigationChanged()
         emitError(error)
     }
 
