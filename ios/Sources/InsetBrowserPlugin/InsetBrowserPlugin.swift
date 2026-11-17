@@ -15,7 +15,8 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "setInsets", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "show", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "hide", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "snapshot", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "snapshot", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getState", returnType: CAPPluginReturnPromise)
     ]
 
     private var browser: InsetBrowser?
@@ -88,6 +89,17 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
         let top = call.getDouble("insetTop").map { CGFloat($0) }
         let bottom = call.getDouble("insetBottom").map { CGFloat($0) }
         withBrowser(call) { $0.setInsets(top: top, bottom: bottom, includeSafeArea: nil) }
+    }
+
+    /// Never rejects: when closed it reports isOpen false.
+    @objc func getState(_ call: CAPPluginCall) {
+        DispatchQueue.main.async { [weak self] in
+            guard let browser = self?.browser else {
+                call.resolve(["isOpen": false, "isVisible": false, "url": "", "canGoBack": false, "canGoForward": false])
+                return
+            }
+            call.resolve(browser.state())
+        }
     }
 
     @objc func snapshot(_ call: CAPPluginCall) {

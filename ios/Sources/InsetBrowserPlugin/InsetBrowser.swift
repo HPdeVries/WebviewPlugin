@@ -68,6 +68,18 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
     func reload() { webView.reload() }
     func setHidden(_ hidden: Bool) { webView.isHidden = hidden }
 
+    /// Current state for getState(): visibility and committed navigation state.
+    func state() -> [String: Any] {
+        let list = webView.backForwardList
+        return [
+            "isOpen": true,
+            "isVisible": !webView.isHidden,
+            "url": list.currentItem?.url.absoluteString ?? webView.url?.absoluteString ?? "",
+            "canGoBack": list.backItem != nil,
+            "canGoForward": list.forwardItem != nil
+        ]
+    }
+
     func setInsets(top: CGFloat?, bottom: CGFloat?, includeSafeArea: Bool?) {
         if let top = top { insetTop = top }
         if let bottom = bottom { insetBottom = bottom }

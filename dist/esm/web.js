@@ -84,6 +84,16 @@ export class InsetBrowserWeb extends WebPlugin {
         if (this.frame)
             this.frame.style.display = 'none';
     }
+    async getState() {
+        const f = this.frame;
+        return {
+            isOpen: !!f,
+            isVisible: !!f && f.style.display !== 'none',
+            url: f ? this.currentUrl() : '',
+            canGoBack: false,
+            canGoForward: false,
+        };
+    }
     async snapshot() {
         // A cross-origin iframe cannot be rendered to an image.
         throw this.unavailable('snapshot is not supported on web');

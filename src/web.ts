@@ -1,6 +1,6 @@
 import { WebPlugin } from '@capacitor/core';
 
-import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult } from './definitions';
+import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult, StateResult } from './definitions';
 
 /**
  * Development fallback: a fixed-position iframe that leaves the requested
@@ -82,6 +82,17 @@ export class InsetBrowserWeb extends WebPlugin implements InsetBrowserPlugin {
 
   async hide(): Promise<void> {
     if (this.frame) this.frame.style.display = 'none';
+  }
+
+  async getState(): Promise<StateResult> {
+    const f = this.frame;
+    return {
+      isOpen: !!f,
+      isVisible: !!f && f.style.display !== 'none',
+      url: f ? this.currentUrl() : '',
+      canGoBack: false,
+      canGoForward: false,
+    };
   }
 
   async snapshot(): Promise<SnapshotResult> {

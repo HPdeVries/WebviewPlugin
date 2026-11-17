@@ -1,5 +1,5 @@
 import { WebPlugin } from '@capacitor/core';
-import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult } from './definitions';
+import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult, StateResult } from './definitions';
 /**
  * Development fallback: a fixed-position iframe that leaves the requested
  * strips free. Many sites refuse to be framed (X-Frame-Options / CSP), and
@@ -20,6 +20,7 @@ export declare class InsetBrowserWeb extends WebPlugin implements InsetBrowserPl
     setInsets(options: InsetOptions): Promise<void>;
     show(): Promise<void>;
     hide(): Promise<void>;
+    getState(): Promise<StateResult>;
     snapshot(): Promise<SnapshotResult>;
     private applyLayout;
     private currentUrl;

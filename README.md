@@ -28,6 +28,7 @@ goBack() / goForward() / reload(): Promise<void>
 setInsets({ insetBottom?, insetTop? }): Promise<void>
 show() / hide(): Promise<void>   // toggle visibility, keep state
 snapshot({ quality? }): Promise<{ dataUrl, left, top, width, height }>
+getState(): Promise<{ isOpen, isVisible, url, canGoBack, canGoForward }>  // never rejects
 ```
 
 - `insetTop` / `insetBottom`: CSS px (= pt on iOS, dp on Android), **excluding** safe area. Default `0`.

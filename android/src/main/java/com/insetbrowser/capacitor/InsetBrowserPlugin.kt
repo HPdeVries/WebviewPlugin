@@ -97,6 +97,21 @@ class InsetBrowserPlugin : Plugin() {
         withBrowser(call) { it.setInsets(top, bottom, null) }
     }
 
+    /** Never rejects: when closed it reports isOpen false. */
+    @PluginMethod
+    fun getState(call: PluginCall) {
+        activity.runOnUiThread {
+            call.resolve(
+                browser?.state() ?: JSObject()
+                    .put("isOpen", false)
+                    .put("isVisible", false)
+                    .put("url", "")
+                    .put("canGoBack", false)
+                    .put("canGoForward", false),
+            )
+        }
+    }
+
     @PluginMethod
     fun snapshot(call: PluginCall) {
         val quality = ((call.getDouble("quality") ?: 0.8).coerceIn(0.1, 1.0) * 100).roundToInt()

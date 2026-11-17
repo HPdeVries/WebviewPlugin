@@ -65,6 +65,17 @@ export interface SnapshotResult {
   height: number;
 }
 
+export interface StateResult {
+  /** True between open() and close(), also while hidden. */
+  isOpen: boolean;
+  /** True when open and not hidden. */
+  isVisible: boolean;
+  /** Current page, '' when closed. */
+  url: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+}
+
 export interface InsetBrowserPlugin {
   /** Open the inset browser. If already open, navigates it to `url` (and applies any given insets). */
   open(options: OpenOptions): Promise<void>;
@@ -87,6 +98,8 @@ export interface InsetBrowserPlugin {
    * Rejects when the browser is not open or hidden. Not supported on web.
    */
   snapshot(options?: SnapshotOptions): Promise<SnapshotResult>;
+  /** Whether the browser is open and visible, and its navigation state. Never rejects. */
+  getState(): Promise<StateResult>;
 
   addListener(eventName: 'pageLoadStarted', listenerFunc: (event: UrlEvent) => void): Promise<PluginListenerHandle>;
   addListener(eventName: 'pageLoaded', listenerFunc: (event: UrlEvent) => void): Promise<PluginListenerHandle>;

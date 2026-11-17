@@ -129,6 +129,14 @@ class InsetBrowser(
     fun setVisible(visible: Boolean) {
         webView.visibility = if (visible) View.VISIBLE else View.GONE
     }
+    /** Current state for getState(); call on the main thread. */
+    fun state(): JSObject = JSObject()
+        .put("isOpen", true)
+        .put("isVisible", isVisible())
+        .put("url", webView.url ?: "")
+        .put("canGoBack", webView.canGoBack())
+        .put("canGoForward", webView.canGoForward())
+
     fun onPause() = webView.onPause()
     fun onResume() = webView.onResume()
 
