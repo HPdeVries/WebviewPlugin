@@ -11,10 +11,12 @@ Capacitor webview, because nothing covers it.
 | Platform | Implementation |
 |---|---|
 | iOS | `WKWebView`, subview of the Capacitor webview (which is the bridge VC's root view), Auto Layout to the safe area |
-| Android | `android.webkit.WebView`, added to the Capacitor webview's parent with top/bottom margins |
+| Android | `android.webkit.WebView`, added to the Capacitor webview's parent with margins (insets + safe area, incl. side cutouts in landscape) |
 | Web | fixed `<iframe>` (dev only; many sites refuse framing) |
 
-Requires Capacitor 7+.
+Supports Capacitor 7 and 8 (iOS 14+ / Android API 23+; SPM and CocoaPods). Tested on
+Capacitor 7.6 and 8.6, iOS 26 simulator and Android 16 emulator, in edge-to-edge,
+non-edge-to-edge and `adjustMarginsForEdgeToEdge: "force"` configurations.
 
 ## API
 
@@ -43,13 +45,22 @@ show() / hide(): Promise<void>   // toggle visibility, keep state
 | `pageLoadStarted` | `{ url }` |
 | `pageLoaded` | `{ url }` |
 | `pageLoadError` | `{ url, message }` (main-frame network errors) |
-| `navigationChanged` | `{ url, canGoBack, canGoForward }` |
+| `navigationChanged` | `{ url, canGoBack, canGoForward }` — once per committed navigation (incl. pushState/#hash); not repeated for reloads |
 | `closed` | `{}` |
 | `backButtonPressed` | `{}` — Android only, see below |
 
+Event notes:
+- `pageLoadError` is not followed by `pageLoaded` on either platform.
+- Android shows its own error page and adds it to history, so a failed load also emits
+  `navigationChanged` with the failed URL and `canGoBack: true`. On iOS a failed load leaves the
+  current page and history unchanged.
+- On Android, `pageLoadStarted` is reported when the WebView starts the page (for unreachable hosts
+  that can be after the DNS timeout); on iOS it is reported immediately.
+
 **Android back button:** while the browser is visible, back navigates inside it. When it
 cannot go back, `backButtonPressed` is emitted and nothing else happens — the host app decides
-(e.g. call `close()`). While hidden/closed, back is handled by the app as usual.
+(e.g. call `close()`). While hidden/closed, back is handled by the app as usual. This takes
+priority over other back handlers such as `@capacitor/app`, regardless of plugin load order.
 
 ## Usage from JavaScript
 
@@ -71,31 +82,46 @@ A full minimal page is in [`example/index.html`](example/index.html).
 ## OutSystems ODC integration
 
 1. **Make the plugin reachable.** Either publish to npm, or reference this git repo
-   (pin a tag/commit). `dist/` is committed, so a git install works without a build step.
+   (pin a tag or commit). `dist/` is committed and there is no `prepare` script, so a git install
+   needs no build step.
 2. **Create a Mobile Library** in ODC Studio (e.g. `InsetBrowserPlugin`) and set its
-   **extensibility configuration** to reference the plugin, e.g.:
+   **extensibility configuration** (MABS 12+, Capacitor apps). The plugin source is an
+   [npm package spec](https://docs.npmjs.com/cli/using-npm/package-spec), so both a registry
+   version and a git URL work:
 
    ```json
    {
-     "plugin": {
-       "url": "https://github.com/HPdeVries/WebviewPlugin.git#v0.1.0"
+     "buildConfigurations": {
+       "capacitor": {
+         "source": {
+           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.1.0"
+         }
+       }
      }
    }
    ```
 
-   > ⚠️ Verify this JSON against the current ODC docs ("Mobile app extensibility
-   > settings" / MABS 12 Capacitor plugins); the exact keys (e.g. git URL vs npm
-   > name, `mobile frameworks` = Capacitor) could not be confirmed while writing this.
+   If published to npm, use `"npm": "capacitor-inset-browser@0.1.0"` instead. The plugin needs no
+   permissions (INTERNET is declared in its own manifest), so no `pluginConfigurations` are needed.
+   Schema: [Library (plugin) extensibility configuration JSON schema](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/configure_mobile_apps/universal_extensibility_configurations_json_schema/library_plugin_extensibility_configuration_json_schema/),
+   guide: [Integrate Capacitor plugin into a mobile app](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/use_mobile_plugins/integrate_capacitor_plugin_into_a_mobile_app/).
+   The ODC docs only show registry specs (`name@version`); a git spec is valid npm syntax but
+   confirm it in a MABS build, or publish to npm to be safe.
 
-3. **Wrap the API in client actions** with a *JavaScript* node each. Check availability first:
+3. **Wrap the API in client actions** with a *JavaScript* node each. MABS bundles the plugin's JS
+   and exposes it as `window.CapacitorPlugins.InsetBrowser` (the package's export name);
+   `Capacitor.Plugins.InsetBrowser` is the native proxy and works too. Check availability first:
 
    **Open** (inputs `Url` text, `InsetBottom` integer):
    ```js
-   if (!window.Capacitor || !Capacitor.isPluginAvailable('InsetBrowser')) {
+   var InsetBrowser = (window.CapacitorPlugins && window.CapacitorPlugins.InsetBrowser) ||
+     (window.Capacitor && Capacitor.isPluginAvailable('InsetBrowser') && Capacitor.Plugins.InsetBrowser);
+   if (!InsetBrowser) {
      $parameters.Error = 'InsetBrowser plugin not available';
+     $resolve();
      return;
    }
-   Capacitor.Plugins.InsetBrowser.open({
+   InsetBrowser.open({
      url: $parameters.Url,
      insetBottom: $parameters.InsetBottom
    }).then($resolve).catch(function (e) {
@@ -106,15 +132,15 @@ A full minimal page is in [`example/index.html`](example/index.html).
 
    **Close**:
    ```js
-   Capacitor.Plugins.InsetBrowser.close().then($resolve);
+   window.CapacitorPlugins.InsetBrowser.close().then($resolve);
    ```
 
    **Listen to events** (e.g. in the menu block's OnReady; remove in OnDestroy):
    ```js
-   Capacitor.Plugins.InsetBrowser.addListener('navigationChanged', function (e) {
+   window.CapacitorPlugins.InsetBrowser.addListener('navigationChanged', function (e) {
      $actions.OnNavigationChanged(e.url, e.canGoBack);
    });
-   Capacitor.Plugins.InsetBrowser.addListener('backButtonPressed', function () {
+   window.CapacitorPlugins.InsetBrowser.addListener('backButtonPressed', function () {
      $actions.OnBackPressed();
    });
    ```
