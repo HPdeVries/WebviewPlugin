@@ -21,9 +21,9 @@ non-edge-to-edge and `adjustMarginsForEdgeToEdge: "force"` configurations.
 ## API
 
 ```ts
-open({ url, insetBottom?, insetTop?, includeSafeArea?, incognito? }): Promise<void>
+open({ url, insetBottom?, insetTop?, includeSafeArea?, incognito?, headers? }): Promise<void>
 close(): Promise<void>
-navigate({ url }): Promise<void>
+navigate({ url, headers? }): Promise<void>
 goBack() / goForward() / reload(): Promise<void>
 setInsets({ insetBottom?, insetTop? }): Promise<void>
 show() / hide(): Promise<void>   // toggle visibility, keep state
@@ -37,6 +37,9 @@ getState(): Promise<{ isOpen, isVisible, url, canGoBack, canGoForward }>  // nev
   exactly what a menu styled `height:56px; padding-bottom:env(safe-area-inset-bottom)` occupies.
 - `incognito` (default `false`): non-persistent data store. **iOS only**; on Android the cookie
   store is process-wide and shared with the app webview.
+- `headers` (optional, `{ name: value }`): extra HTTP request headers, e.g. `Authorization`. Sent
+  with that request only, not with links followed inside the page or with subresources. Ignored
+  by the web fallback.
 - Only one instance exists. `open()` while open navigates it (and applies any insets passed) and makes it visible.
 - Layout is recalculated on rotation/resize automatically.
 
@@ -125,14 +128,14 @@ A full minimal page is in [`example/index.html`](example/index.html).
      "buildConfigurations": {
        "capacitor": {
          "source": {
-           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.2.0"
+           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.3.0"
          }
        }
      }
    }
    ```
 
-   If published to npm, use `"npm": "capacitor-inset-browser@0.2.0"` instead. The plugin needs no
+   If published to npm, use `"npm": "capacitor-inset-browser@0.3.0"` instead. The plugin needs no
    permissions (INTERNET is declared in its own manifest), so no `pluginConfigurations` are needed.
    Schema: [Library (plugin) extensibility configuration JSON schema](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/configure_mobile_apps/universal_extensibility_configurations_json_schema/library_plugin_extensibility_configuration_json_schema/),
    guide: [Integrate Capacitor plugin into a mobile app](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/use_mobile_plugins/integrate_capacitor_plugin_into_a_mobile_app/).

@@ -36,6 +36,7 @@ class InsetBrowserPlugin : Plugin() {
         val insetTop = call.getDouble("insetTop")
         val insetBottom = call.getDouble("insetBottom")
         val includeSafeArea = call.getBoolean("includeSafeArea")
+        val headers = headers(call)
 
         activity.runOnUiThread {
             val existing = browser
@@ -43,7 +44,7 @@ class InsetBrowserPlugin : Plugin() {
                 // Single instance: open() again navigates the existing browser.
                 existing.setInsets(insetTop, insetBottom, includeSafeArea)
                 existing.setVisible(true)
-                existing.load(url)
+                existing.load(url, headers)
             } else {
                 val b = InsetBrowser(
                     activity = activity,
@@ -54,7 +55,7 @@ class InsetBrowserPlugin : Plugin() {
                     emit = { name, data -> notifyListeners(name, data) },
                 )
                 browser = b
-                b.load(url)
+                b.load(url, headers)
             }
             updateBackCallback()
             call.resolve()
@@ -81,7 +82,8 @@ class InsetBrowserPlugin : Plugin() {
             call.reject("A valid url is required")
             return
         }
-        withBrowser(call) { it.load(url) }
+        val headers = headers(call)
+        withBrowser(call) { it.load(url, headers) }
     }
 
     @PluginMethod fun goBack(call: PluginCall) = withBrowser(call) { it.goBack() }
@@ -125,6 +127,14 @@ class InsetBrowserPlugin : Plugin() {
                 if (data != null) call.resolve(data) else call.reject(error ?: "Snapshot failed")
             }
         }
+    }
+
+    /** Optional `headers` object of string values; other values are ignored. */
+    private fun headers(call: PluginCall): Map<String, String> {
+        val obj = call.getObject("headers") ?: return emptyMap()
+        val map = LinkedHashMap<String, String>()
+        obj.keys().forEach { key -> (obj.opt(key) as? String)?.let { map[key] = it } }
+        return map
     }
 
     private fun withBrowser(call: PluginCall, action: (InsetBrowser) -> Unit) {

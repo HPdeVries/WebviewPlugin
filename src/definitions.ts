@@ -24,10 +24,18 @@ export interface OpenOptions {
    * cookie store is shared process-wide with the app webview.
    */
   incognito?: boolean;
+  /**
+   * Extra HTTP request headers, e.g. `{ Authorization: 'Bearer ...' }`.
+   * Sent with this request only, not with links followed inside the page or
+   * with subresources. Native only; ignored by the web fallback.
+   */
+  headers?: Record<string, string>;
 }
 
 export interface NavigateOptions {
   url: string;
+  /** Extra HTTP request headers for this request only (see OpenOptions.headers). */
+  headers?: Record<string, string>;
 }
 
 export interface InsetOptions {

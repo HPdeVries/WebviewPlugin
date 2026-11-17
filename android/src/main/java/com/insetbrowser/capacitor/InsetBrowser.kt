@@ -120,7 +120,9 @@ class InsetBrowser(
         parent.post { applyLayout() }
     }
 
-    fun load(url: String) = webView.loadUrl(url)
+    /** [headers] are sent with this request only (not with later link navigations or subresources). */
+    fun load(url: String, headers: Map<String, String> = emptyMap()) =
+        if (headers.isEmpty()) webView.loadUrl(url) else webView.loadUrl(url, headers)
     fun canGoBack() = webView.canGoBack()
     fun goBack() { if (webView.canGoBack()) webView.goBack() }
     fun goForward() { if (webView.canGoForward()) webView.goForward() }

@@ -59,8 +59,12 @@ final class InsetBrowser: NSObject, WKNavigationDelegate, WKUIDelegate {
 
     // MARK: - Public API
 
-    func load(_ url: URL) {
-        webView.load(URLRequest(url: url))
+    /// `headers` are sent with this request only (not with later link
+    /// navigations or subresources).
+    func load(_ url: URL, headers: [String: String] = [:]) {
+        var request = URLRequest(url: url)
+        headers.forEach { request.setValue($0.value, forHTTPHeaderField: $0.key) }
+        webView.load(request)
     }
 
     func goBack() { if webView.canGoBack { webView.goBack() } }

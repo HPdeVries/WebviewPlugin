@@ -30,6 +30,7 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
         let insetBottom = call.getDouble("insetBottom").map { CGFloat($0) }
         let includeSafeArea = call.getBool("includeSafeArea")
         let incognito = call.getBool("incognito") ?? false
+        let headers = Self.headers(call)
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -37,7 +38,7 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
                 // Single instance: open() again navigates the existing browser.
                 browser.setInsets(top: insetTop, bottom: insetBottom, includeSafeArea: includeSafeArea)
                 browser.setHidden(false)
-                browser.load(url)
+                browser.load(url, headers: headers)
                 call.resolve()
                 return
             }
@@ -54,7 +55,7 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
                 emit: { [weak self] name, data in self?.notifyListeners(name, data: data) }
             )
             self.browser = browser
-            browser.load(url)
+            browser.load(url, headers: headers)
             call.resolve()
         }
     }
@@ -76,7 +77,8 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
             call.reject("A valid url is required")
             return
         }
-        withBrowser(call) { $0.load(url) }
+        let headers = Self.headers(call)
+        withBrowser(call) { $0.load(url, headers: headers) }
     }
 
     @objc func goBack(_ call: CAPPluginCall) { withBrowser(call) { $0.goBack() } }
@@ -116,6 +118,11 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
         }
+    }
+
+    /// Optional `headers` object of string values; other values are ignored.
+    private static func headers(_ call: CAPPluginCall) -> [String: String] {
+        (call.getObject("headers") ?? [:]).compactMapValues { $0 as? String }
     }
 
     private func withBrowser(_ call: CAPPluginCall, _ action: @escaping (InsetBrowser) -> Void) {
