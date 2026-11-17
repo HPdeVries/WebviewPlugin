@@ -10,6 +10,7 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.getcapacitor.JSObject
@@ -40,6 +41,9 @@ class InsetBrowser(
         // Defer: changing layout params inside a layout pass is not allowed.
         parent.post { applyLayout() }
     }
+    /** URL of the main-frame load that failed; its onPageFinished is not reported. */
+    private var failedUrl: String? = null
+    private var lastNavigationState: Triple<String, Boolean, Boolean>? = null
 
     init {
         webView.settings.apply {
@@ -56,15 +60,23 @@ class InsetBrowser(
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
+                failedUrl = null // WebView order is: started -> error -> finished
                 emit("pageLoadStarted", JSObject().put("url", url))
             }
 
             override fun onPageFinished(view: WebView, url: String) {
+                // WebView also "finishes" its own error page; iOS does not, so
+                // keep the platforms consistent: an error is never followed by pageLoaded.
+                if (url == failedUrl) {
+                    failedUrl = null
+                    return
+                }
                 emit("pageLoaded", JSObject().put("url", url))
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
                 if (!request.isForMainFrame) return
+                failedUrl = request.url.toString()
                 emit(
                     "pageLoadError",
                     JSObject().put("url", request.url.toString()).put("message", error.description.toString()),
@@ -72,12 +84,17 @@ class InsetBrowser(
             }
 
             override fun doUpdateVisitedHistory(view: WebView, url: String, isReload: Boolean) {
+                // Only report real changes (e.g. not a reload), like iOS. isReload
+                // itself is unreliable: it is also true for some back/forward loads.
+                val state = Triple(url, view.canGoBack(), view.canGoForward())
+                if (state == lastNavigationState) return
+                lastNavigationState = state
                 emit(
                     "navigationChanged",
                     JSObject()
-                        .put("url", url)
-                        .put("canGoBack", view.canGoBack())
-                        .put("canGoForward", view.canGoForward()),
+                        .put("url", state.first)
+                        .put("canGoBack", state.second)
+                        .put("canGoForward", state.third),
                 )
             }
         }
@@ -124,29 +141,38 @@ class InsetBrowser(
     /**
      * Safe area relative to the parent: system bar/cutout insets minus the part
      * the parent already avoids (e.g. when the app is not edge-to-edge).
+     * Left/right matter in landscape on devices with a side cutout.
      */
-    private fun safeArea(): Pair<Int, Int> {
-        if (!includeSafeArea) return 0 to 0
-        val insets = ViewCompat.getRootWindowInsets(parent) ?: return 0 to 0
+    private fun safeArea(): Insets {
+        if (!includeSafeArea) return Insets.NONE
+        val insets = ViewCompat.getRootWindowInsets(parent) ?: return Insets.NONE
         val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
         val loc = IntArray(2)
         parent.getLocationInWindow(loc)
-        val rootHeight = parent.rootView.height
-        val parentTop = loc[1]
-        val parentBottomGap = max(0, rootHeight - (loc[1] + parent.height))
-        return max(0, bars.top - parentTop) to max(0, bars.bottom - parentBottomGap)
+        val root = parent.rootView
+        val gapLeft = loc[0]
+        val gapTop = loc[1]
+        val gapRight = max(0, root.width - (loc[0] + parent.width))
+        val gapBottom = max(0, root.height - (loc[1] + parent.height))
+        return Insets.of(
+            max(0, bars.left - gapLeft),
+            max(0, bars.top - gapTop),
+            max(0, bars.right - gapRight),
+            max(0, bars.bottom - gapBottom),
+        )
     }
 
     private fun applyLayout() {
-        val (safeTop, safeBottom) = safeArea()
-        val top = (insetTop * density).roundToInt() + safeTop
-        val bottom = (insetBottom * density).roundToInt() + safeBottom
+        val safe = safeArea()
+        val top = (insetTop * density).roundToInt() + safe.top
+        val bottom = (insetBottom * density).roundToInt() + safe.bottom
         // Mutate the params the parent generated (e.g. CoordinatorLayout.LayoutParams)
         // instead of replacing them with a foreign type.
         val lp = webView.layoutParams as? ViewGroup.MarginLayoutParams ?: return
-        if (lp.topMargin == top && lp.bottomMargin == bottom) return
-        lp.topMargin = top
-        lp.bottomMargin = bottom
+        if (lp.topMargin == top && lp.bottomMargin == bottom &&
+            lp.leftMargin == safe.left && lp.rightMargin == safe.right
+        ) return
+        lp.setMargins(safe.left, top, safe.right, bottom)
         webView.layoutParams = lp
     }
 }
