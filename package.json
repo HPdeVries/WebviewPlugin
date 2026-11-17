@@ -1,0 +1,44 @@
+{
+  "name": "capacitor-inset-browser",
+  "version": "0.1.0",
+  "description": "Capacitor plugin that shows external web content in a native webview while keeping a strip of the host app (top/bottom menu) visible and interactive.",
+  "main": "dist/plugin.cjs.js",
+  "module": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "unpkg": "dist/plugin.js",
+  "files": [
+    "android/src/main/",
+    "android/build.gradle",
+    "dist/",
+    "ios/Sources",
+    "Package.swift",
+    "CapacitorInsetBrowser.podspec"
+  ],
+  "keywords": ["capacitor", "plugin", "native", "webview", "in-app-browser", "outsystems"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HPdeVries/WebviewPlugin.git"
+  },
+  "scripts": {
+    "build": "npm run clean && tsc && rollup -c rollup.config.mjs",
+    "clean": "rimraf ./dist",
+    "watch": "tsc --watch",
+    "prepare": "npm run build"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^7.0.0",
+    "@capacitor/core": "^7.0.0",
+    "@capacitor/ios": "^7.0.0",
+    "rimraf": "^6.0.1",
+    "rollup": "^4.30.0",
+    "typescript": "~5.6.3"
+  },
+  "peerDependencies": {
+    "@capacitor/core": ">=7.0.0"
+  },
+  "capacitor": {
+    "ios": { "src": "ios" },
+    "android": { "src": "android" }
+  }
+}

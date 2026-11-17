@@ -1,0 +1,46 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>InsetBrowser example</title>
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    /* Host app menu: 56px + safe area, matches insetBottom: 56 */
+    nav {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: 56px; padding-bottom: env(safe-area-inset-bottom);
+      display: flex; background: #222;
+    }
+    nav button { flex: 1; color: #fff; background: none; border: 0; font-size: 15px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <button id="open">Open</button>
+    <button id="back">Back</button>
+    <button id="toggle">Hide/Show</button>
+    <button id="close">Close</button>
+  </nav>
+
+  <script type="module">
+    // In a Capacitor app the native plugin is exposed on Capacitor.Plugins.
+    const InsetBrowser = window.Capacitor.Plugins.InsetBrowser;
+    let hidden = false;
+
+    InsetBrowser.addListener('pageLoaded', (e) => console.log('loaded', e.url));
+    InsetBrowser.addListener('pageLoadError', (e) => console.warn('error', e.url, e.message));
+    InsetBrowser.addListener('navigationChanged', (e) =>
+      document.getElementById('back').disabled = !e.canGoBack);
+    InsetBrowser.addListener('backButtonPressed', () => InsetBrowser.close());
+    InsetBrowser.addListener('closed', () => console.log('closed'));
+
+    document.getElementById('open').onclick = () =>
+      InsetBrowser.open({ url: 'https://capacitorjs.com', insetBottom: 56 });
+    document.getElementById('back').onclick = () => InsetBrowser.goBack();
+    document.getElementById('toggle').onclick = () =>
+      (hidden = !hidden) ? InsetBrowser.hide() : InsetBrowser.show();
+    document.getElementById('close').onclick = () => InsetBrowser.close();
+  </script>
+</body>
+</html>
