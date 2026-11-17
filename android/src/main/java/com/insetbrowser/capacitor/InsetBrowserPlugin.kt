@@ -24,11 +24,6 @@ class InsetBrowserPlugin : Plugin() {
         }
     }
 
-    override fun load() {
-        activity.runOnUiThread {
-            activity.onBackPressedDispatcher.addCallback(activity, backCallback)
-        }
-    }
 
     @PluginMethod
     fun open(call: PluginCall) {
@@ -114,8 +109,19 @@ class InsetBrowserPlugin : Plugin() {
         }
     }
 
+    /**
+     * The dispatcher gives priority to the most recently added callback, and
+     * other plugins (e.g. @capacitor/app) register theirs too. Re-adding ours
+     * whenever the browser becomes visible keeps it on top regardless of
+     * plugin load order. Must run on the main thread.
+     */
     private fun updateBackCallback() {
-        backCallback.isEnabled = browser?.isVisible() == true
+        val visible = browser?.isVisible() == true
+        if (visible && !backCallback.isEnabled) {
+            backCallback.remove()
+            activity.onBackPressedDispatcher.addCallback(activity, backCallback)
+        }
+        backCallback.isEnabled = visible
     }
 
     override fun handleOnPause() {
