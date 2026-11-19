@@ -31,6 +31,10 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
         let includeSafeArea = call.getBool("includeSafeArea")
         let incognito = call.getBool("incognito") ?? false
         let headers = Self.headers(call)
+        if let error = Self.validate(url, headers: headers) {
+            call.reject(error)
+            return
+        }
 
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
@@ -78,6 +82,10 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
             return
         }
         let headers = Self.headers(call)
+        if let error = Self.validate(url, headers: headers) {
+            call.reject(error)
+            return
+        }
         withBrowser(call) { $0.load(url, headers: headers) }
     }
 
@@ -118,6 +126,16 @@ public class InsetBrowserPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
         }
+    }
+
+    /// Only http(s) may be loaded (no `javascript:`, `file:`, custom schemes).
+    /// Headers (e.g. tokens) are only sent over https.
+    /// Returns an error message, or nil when valid.
+    private static func validate(_ url: URL, headers: [String: String]) -> String? {
+        let scheme = url.scheme?.lowercased()
+        guard scheme == "http" || scheme == "https" else { return "Only http and https URLs are allowed" }
+        if !headers.isEmpty && scheme != "https" { return "Headers are only allowed with https URLs" }
+        return nil
     }
 
     /// Optional `headers` object of string values; other values are ignored.

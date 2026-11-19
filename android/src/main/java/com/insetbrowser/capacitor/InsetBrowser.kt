@@ -39,6 +39,7 @@ class InsetBrowser(
     private var insetTop: Double,
     private var insetBottom: Double,
     private var includeSafeArea: Boolean,
+    thirdPartyCookies: Boolean,
     private val emit: (String, JSObject) -> Unit,
 ) {
     private val parent: ViewGroup = host.parent as? ViewGroup
@@ -61,10 +62,15 @@ class InsetBrowser(
             useWideViewPort = true
             setSupportMultipleWindows(false) // target=_blank loads in this webview
             javaScriptCanOpenWindowsAutomatically = false
+            // External content must not read local files or content providers.
+            allowFileAccess = false
+            allowContentAccess = false
         }
         // Default persistent cookie store (shared process-wide with the app webview).
+        // Third-party cookies are off by default: with them, any page in this browser
+        // could send credentialed requests to the app's own (e.g. ODC) domains.
         CookieManager.getInstance().setAcceptCookie(true)
-        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+        setThirdPartyCookies(thirdPartyCookies)
 
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView, url: String, favicon: Bitmap?) {
@@ -123,6 +129,8 @@ class InsetBrowser(
     /** [headers] are sent with this request only (not with later link navigations or subresources). */
     fun load(url: String, headers: Map<String, String> = emptyMap()) =
         if (headers.isEmpty()) webView.loadUrl(url) else webView.loadUrl(url, headers)
+    fun setThirdPartyCookies(allow: Boolean) =
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, allow)
     fun canGoBack() = webView.canGoBack()
     fun goBack() { if (webView.canGoBack()) webView.goBack() }
     fun goForward() { if (webView.canGoForward()) webView.goForward() }

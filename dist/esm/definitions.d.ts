@@ -1,6 +1,6 @@
 import type { PluginListenerHandle } from '@capacitor/core';
 export interface OpenOptions {
-    /** URL to load. */
+    /** URL to load. Only `http` and `https` are allowed; other schemes reject. */
     url: string;
     /**
      * Height of the strip kept free at the bottom, in CSS px
@@ -24,15 +24,26 @@ export interface OpenOptions {
      */
     incognito?: boolean;
     /**
+     * Accept third-party cookies in the inset browser. Default false.
+     * Android only (iOS WebKit blocks them by default). Because Android shares
+     * the cookie store with the app webview, enabling this lets pages in the
+     * inset browser send credentialed requests to the app's own domains.
+     * Enable only for trusted content that needs it (e.g. embedded SSO).
+     */
+    thirdPartyCookies?: boolean;
+    /**
      * Extra HTTP request headers, e.g. `{ Authorization: 'Bearer ...' }`.
      * Sent with this request only, not with links followed inside the page or
-     * with subresources. Native only; ignored by the web fallback.
+     * with subresources. Only allowed with `https` URLs (rejects otherwise);
+     * only send credentials to hosts you trust. Native only; ignored by the
+     * web fallback.
      */
     headers?: Record<string, string>;
 }
 export interface NavigateOptions {
+    /** URL to load. Only `http` and `https` are allowed; other schemes reject. */
     url: string;
-    /** Extra HTTP request headers for this request only (see OpenOptions.headers). */
+    /** Extra HTTP request headers for this request only, https only (see OpenOptions.headers). */
     headers?: Record<string, string>;
 }
 export interface InsetOptions {

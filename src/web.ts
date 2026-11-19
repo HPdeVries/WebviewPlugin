@@ -2,6 +2,19 @@ import { WebPlugin } from '@capacitor/core';
 
 import type { InsetBrowserPlugin, InsetOptions, NavigateOptions, OpenOptions, SnapshotResult, StateResult } from './definitions';
 
+/** Same rule as native: only http(s) URLs (no `javascript:`, `data:`, `file:`). */
+function assertHttpUrl(url: string): void {
+  let protocol = '';
+  try {
+    protocol = new URL(url.trim()).protocol;
+  } catch {
+    // not an absolute URL
+  }
+  if (protocol !== 'http:' && protocol !== 'https:') {
+    throw new Error('Only http and https URLs are allowed');
+  }
+}
+
 /**
  * Development fallback: a fixed-position iframe that leaves the requested
  * strips free. Many sites refuse to be framed (X-Frame-Options / CSP), and
@@ -16,6 +29,7 @@ export class InsetBrowserWeb extends WebPlugin implements InsetBrowserPlugin {
 
   async open(options: OpenOptions): Promise<void> {
     if (!options?.url) throw new Error('url is required');
+    assertHttpUrl(options.url);
     if (options.insetTop !== undefined) this.insetTop = options.insetTop;
     if (options.insetBottom !== undefined) this.insetBottom = options.insetBottom;
     if (options.includeSafeArea !== undefined) this.includeSafeArea = options.includeSafeArea;
@@ -54,6 +68,7 @@ export class InsetBrowserWeb extends WebPlugin implements InsetBrowserPlugin {
 
   async navigate(options: NavigateOptions): Promise<void> {
     if (!this.frame) throw new Error('InsetBrowser is not open');
+    assertHttpUrl(options.url);
     this.notifyListeners('pageLoadStarted', { url: options.url });
     this.frame.src = options.url;
   }

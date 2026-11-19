@@ -1,5 +1,6 @@
 package com.insetbrowser.capacitor
 
+import android.net.Uri
 import androidx.activity.OnBackPressedCallback
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
@@ -36,13 +37,19 @@ class InsetBrowserPlugin : Plugin() {
         val insetTop = call.getDouble("insetTop")
         val insetBottom = call.getDouble("insetBottom")
         val includeSafeArea = call.getBoolean("includeSafeArea")
+        val thirdPartyCookies = call.getBoolean("thirdPartyCookies")
         val headers = headers(call)
+        validate(url, headers)?.let {
+            call.reject(it)
+            return
+        }
 
         activity.runOnUiThread {
             val existing = browser
             if (existing != null) {
                 // Single instance: open() again navigates the existing browser.
                 existing.setInsets(insetTop, insetBottom, includeSafeArea)
+                thirdPartyCookies?.let { existing.setThirdPartyCookies(it) }
                 existing.setVisible(true)
                 existing.load(url, headers)
             } else {
@@ -52,6 +59,7 @@ class InsetBrowserPlugin : Plugin() {
                     insetTop = insetTop ?: 0.0,
                     insetBottom = insetBottom ?: 0.0,
                     includeSafeArea = includeSafeArea ?: true,
+                    thirdPartyCookies = thirdPartyCookies ?: false,
                     emit = { name, data -> notifyListeners(name, data) },
                 )
                 browser = b
@@ -83,6 +91,10 @@ class InsetBrowserPlugin : Plugin() {
             return
         }
         val headers = headers(call)
+        validate(url, headers)?.let {
+            call.reject(it)
+            return
+        }
         withBrowser(call) { it.load(url, headers) }
     }
 
@@ -127,6 +139,18 @@ class InsetBrowserPlugin : Plugin() {
                 if (data != null) call.resolve(data) else call.reject(error ?: "Snapshot failed")
             }
         }
+    }
+
+    /**
+     * Only http(s) may be loaded: `javascript:` would run script in the current
+     * page, `file:`/`content:` would expose local data. Headers (e.g. tokens) are
+     * only sent over https. Returns an error message, or null when valid.
+     */
+    private fun validate(url: String, headers: Map<String, String>): String? {
+        val scheme = Uri.parse(url.trim()).scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") return "Only http and https URLs are allowed"
+        if (headers.isNotEmpty() && scheme != "https") return "Headers are only allowed with https URLs"
+        return null
     }
 
     /** Optional `headers` object of string values; other values are ignored. */

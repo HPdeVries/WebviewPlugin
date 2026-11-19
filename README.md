@@ -21,7 +21,7 @@ non-edge-to-edge and `adjustMarginsForEdgeToEdge: "force"` configurations.
 ## API
 
 ```ts
-open({ url, insetBottom?, insetTop?, includeSafeArea?, incognito?, headers? }): Promise<void>
+open({ url, insetBottom?, insetTop?, includeSafeArea?, incognito?, thirdPartyCookies?, headers? }): Promise<void>
 close(): Promise<void>
 navigate({ url, headers? }): Promise<void>
 goBack() / goForward() / reload(): Promise<void>
@@ -37,8 +37,15 @@ getState(): Promise<{ isOpen, isVisible, url, canGoBack, canGoForward }>  // nev
   exactly what a menu styled `height:56px; padding-bottom:env(safe-area-inset-bottom)` occupies.
 - `incognito` (default `false`): non-persistent data store. **iOS only**; on Android the cookie
   store is process-wide and shared with the app webview.
+- `url`: only `http` and `https` are allowed; any other scheme (`javascript:`, `file:`, `content:`,
+  `data:`, custom schemes) rejects.
+- `thirdPartyCookies` (default `false`): accept third-party cookies. **Android only** (iOS WebKit
+  blocks them). Android shares the cookie store with the app webview, so enabling this lets pages in
+  the inset browser send credentialed requests to the app's own domains. Enable only for trusted
+  content that needs it (e.g. embedded SSO).
 - `headers` (optional, `{ name: value }`): extra HTTP request headers, e.g. `Authorization`. Sent
-  with that request only, not with links followed inside the page or with subresources. Ignored
+  with that request only, not with links followed inside the page or with subresources. **Only
+  allowed with `https` URLs** (rejects otherwise); only send credentials to hosts you trust. Ignored
   by the web fallback.
 - Only one instance exists. `open()` while open navigates it (and applies any insets passed) and makes it visible.
 - Layout is recalculated on rotation/resize automatically.
@@ -191,6 +198,14 @@ A full minimal page is in [`example/index.html`](example/index.html).
   inset browser yet.
 - `target="_blank"` / `window.open` links load in the same inset browser.
 - Android: cookies are shared with the app webview; `incognito` is ignored.
+
+## Security
+
+- Only `http`/`https` URLs can be loaded; headers only over `https`.
+- The inset browser has no access to the Capacitor bridge (no JS interfaces / message handlers).
+- Android: file and content-provider access are disabled; third-party cookies are off by default.
+- There is no address bar, so users cannot see which site is shown. Load only URLs you control or
+  trust, and never pass a URL taken from untrusted input (deep links, query strings) unchecked.
 - Web fallback cannot observe cross-origin history; `canGoBack`/`canGoForward` are always `false`.
 
 ## Build

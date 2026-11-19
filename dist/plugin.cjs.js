@@ -6,6 +6,19 @@ const InsetBrowser = core.registerPlugin('InsetBrowser', {
     web: () => Promise.resolve().then(function () { return web; }).then((m) => new m.InsetBrowserWeb()),
 });
 
+/** Same rule as native: only http(s) URLs (no `javascript:`, `data:`, `file:`). */
+function assertHttpUrl(url) {
+    let protocol = '';
+    try {
+        protocol = new URL(url.trim()).protocol;
+    }
+    catch (_a) {
+        // not an absolute URL
+    }
+    if (protocol !== 'http:' && protocol !== 'https:') {
+        throw new Error('Only http and https URLs are allowed');
+    }
+}
 /**
  * Development fallback: a fixed-position iframe that leaves the requested
  * strips free. Many sites refuse to be framed (X-Frame-Options / CSP), and
@@ -23,6 +36,7 @@ class InsetBrowserWeb extends core.WebPlugin {
     async open(options) {
         if (!(options === null || options === void 0 ? void 0 : options.url))
             throw new Error('url is required');
+        assertHttpUrl(options.url);
         if (options.insetTop !== undefined)
             this.insetTop = options.insetTop;
         if (options.insetBottom !== undefined)
@@ -63,6 +77,7 @@ class InsetBrowserWeb extends core.WebPlugin {
     async navigate(options) {
         if (!this.frame)
             throw new Error('InsetBrowser is not open');
+        assertHttpUrl(options.url);
         this.notifyListeners('pageLoadStarted', { url: options.url });
         this.frame.src = options.url;
     }
