@@ -135,14 +135,14 @@ A full minimal page is in [`example/index.html`](example/index.html).
      "buildConfigurations": {
        "capacitor": {
          "source": {
-           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.3.0"
+           "npm": "git+https://github.com/HPdeVries/WebviewPlugin.git#v0.4.0"
          }
        }
      }
    }
    ```
 
-   If published to npm, use `"npm": "capacitor-inset-browser@0.3.0"` instead. The plugin needs no
+   If published to npm, use `"npm": "capacitor-inset-browser@0.4.0"` instead. The plugin needs no
    permissions (INTERNET is declared in its own manifest), so no `pluginConfigurations` are needed.
    Schema: [Library (plugin) extensibility configuration JSON schema](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/configure_mobile_apps/universal_extensibility_configurations_json_schema/library_plugin_extensibility_configuration_json_schema/),
    guide: [Integrate Capacitor plugin into a mobile app](https://success.outsystems.com/documentation/outsystems_developer_cloud/building_apps/mobile_apps/use_mobile_plugins/integrate_capacitor_plugin_into_a_mobile_app/).

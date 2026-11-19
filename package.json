@@ -1,6 +1,6 @@
 {
   "name": "capacitor-inset-browser",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Capacitor plugin that shows external web content in a native webview while keeping a strip of the host app (top/bottom menu) visible and interactive.",
   "main": "dist/plugin.cjs.js",
   "module": "dist/esm/index.js",
@@ -14,7 +14,14 @@
     "Package.swift",
     "CapacitorInsetBrowser.podspec"
   ],
-  "keywords": ["capacitor", "plugin", "native", "webview", "in-app-browser", "outsystems"],
+  "keywords": [
+    "capacitor",
+    "plugin",
+    "native",
+    "webview",
+    "in-app-browser",
+    "outsystems"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -38,7 +45,11 @@
     "@capacitor/core": "^7.0.0 || ^8.0.0"
   },
   "capacitor": {
-    "ios": { "src": "ios" },
-    "android": { "src": "android" }
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
   }
 }
